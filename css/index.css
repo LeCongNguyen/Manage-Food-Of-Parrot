@@ -1,0 +1,62 @@
+.top-of-card {
+    margin-top: 15px;
+}
+
+.card-title {
+    display: flex;
+    justify-content: space-between;
+    color: blue;
+}
+
+.on-btn {
+    width: 50%;
+    color: white;
+    background-color: green;
+}
+
+.off-btn {
+    width: 50%;
+    color: white;
+    background-color: red;
+}
+
+.setting-btn {
+    float: right;
+    width: 10%;
+    border: none;
+    border-radius: 50%;
+    background-color: none;
+}
+
+.ok-btn {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    margin-left: 1rem;
+}
+
+.icon {
+    width: 100%;
+}
+
+form {
+    display: flex;
+    justify-content: center;
+}
+
+.card-bg-color {
+    background-color: lightgray;
+}
+
+input {
+    display: none;
+}
+
+.setting-input {
+    display: block;
+    width: 50%;
+}
+
+.setting-body {
+    display: flex;
+    justify-content: center;
+}

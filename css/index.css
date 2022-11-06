@@ -5,6 +5,10 @@
 .card-title {
     display: flex;
     justify-content: space-between;
+    color: white;
+}
+
+.setting-title {
     color: blue;
 }
 
@@ -44,7 +48,7 @@ form {
 }
 
 .card-bg-color {
-    background-color: lightgray;
+    background-color: black;
 }
 
 input {

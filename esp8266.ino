@@ -1,3 +1,4 @@
+#include <Stepper_28BYJ_48.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -19,8 +20,16 @@ String host = "managefoodofparrot.000webhostapp.com";
 String path = "/feeder-status.json";
 String status;
 
+Stepper_28BYJ_48 stepper(16, 5, 4, 0); //tương ứng với D0. D1, D2, D3 của ESP8266
+
 void setup()
 {
+    int i;
+    for (i = 0; i <= 100; i++)
+    {
+        stepper.step(1);
+    }
+
     Serial.begin(115200);
     // Connect to Wifi
     WiFi.begin(ssid, password);
@@ -72,6 +81,5 @@ void loop()
         Serial.print(".");
         delay(250);
     }
-
     delay(600000);
 }

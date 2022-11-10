@@ -21,15 +21,18 @@ String path = "/feeder-status.json";
 String status;
 String jsonData = "";
 int testBtn = 0; // button on Esp
+int relay = 12; //relay cấp nguồn cho stepper
 int i;
 
 // Keo's motor
-Stepper_28BYJ_48 keoStepper(5, 4, 2, 14); // tương ứng với D1, D4, D5 của ESP8266
+Stepper_28BYJ_48 keoStepper(5, 4, 2, 14); // tương ứng với D1, D2, D4, D5 của ESP8266
 
 void setup()
 {
     Serial.begin(115200);
     pinMode(testBtn, INPUT_PULLUP);
+    pinMode(relay, OUTPUT);
+    digitalWrite(relay, LOW);
     // Connect to Wifi
     WiFi.begin(ssid, password);
     Serial.print("Connecting...");
@@ -87,10 +90,10 @@ void loop()
         delay(250);
     }
     //Tạo delay kết hợp kiểm tra nút nhấn
-    i = 120000;
+    i = 300000;
     while (i >= 0)
     {
-        if (digitalRead(testBtn) == 0)
+        if (digitalRead(testBtn) == LOW)
         {
             Serial.println("Retest...");
             goto retest;
@@ -121,11 +124,17 @@ void controlSteppers(String newData)
         int keoSteps = atoi(jsonBuffer["keoSet"]);
         if (strcmp(jsonBuffer["keo"], "on") == 0) // strcmp - string compare - so sánh 2 chuỗi, nếu bằng nhau thì trả về 0
         {
+            digitalWrite(relay, HIGH);
+            delay(100);
             keoStepper.step(keoSteps);
+            digitalWrite(relay, LOW);
         }
         else
         {
+            digitalWrite(relay, HIGH);
+            delay(100);
             keoStepper.step(0 - keoSteps);
+            digitalWrite(relay, LOW);
         }
     }
 }

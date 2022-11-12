@@ -21,8 +21,9 @@ String path = "/feeder-status.json";
 String status;
 String jsonData = "";
 int testBtn = 0; // button on Esp
-int relay = 12; //relay cấp nguồn cho stepper
+int relay = 12;  // relay cấp nguồn cho stepper
 int i;
+int initial = 0;
 
 // Keo's motor
 Stepper_28BYJ_48 keoStepper(5, 4, 2, 14); // tương ứng với D1, D2, D4, D5 của ESP8266
@@ -49,8 +50,8 @@ void setup()
 
 void loop()
 {
-    // ESP sent request to Host to take json file
-    retest:
+// ESP sent request to Host to take json file
+retest:
     if (WiFi.status() == WL_CONNECTED)
     {
         // Connect to host through port 80
@@ -80,7 +81,18 @@ void loop()
             Serial.println(result2);
             Serial.println();
             client.stop();
-            controlSteppers(result2);
+            if (result2 != jsonData)
+            {
+                jsonData = result2;
+                if (initial == 1)
+                {
+                    controlSteppers(result2);
+                }
+                else
+                {
+                    initial = 1;
+                }
+            }
         }
     }
     else
@@ -89,8 +101,8 @@ void loop()
         Serial.print(".");
         delay(250);
     }
-    //Tạo delay kết hợp kiểm tra nút nhấn
-    i = 300000;
+    // Tạo delay kết hợp kiểm tra nút nhấn
+    i = 60000;
     while (i >= 0)
     {
         if (digitalRead(testBtn) == LOW)
@@ -98,7 +110,8 @@ void loop()
             Serial.println("Retest...");
             goto retest;
         }
-        else {
+        else
+        {
             i--;
             delay(1);
         }
@@ -107,34 +120,30 @@ void loop()
 
 void controlSteppers(String newData)
 {
-    if (newData != jsonData)
+    // Parse JSON
+    int size = 1024; // Bắt đầu từ ArduinoJson 6.7.0 DynamicJsonDocument có dung lượng cố định (tìm DynamicJsonDocument để xem thêm chi tiết)
+    char json[size];
+    newData.toCharArray(json, size); //Ép kiểu từ String sang Array
+    DynamicJsonDocument jsonBuffer(size);
+    DeserializationError error = deserializeJson(jsonBuffer, json);
+    if (error)
     {
-        jsonData = newData;
-        // Parse JSON
-        int size = 1024; // Bắt đầu từ ArduinoJson 6.7.0 DynamicJsonDocument có dung lượng cố định (tìm DynamicJsonDocument để xem thêm chi tiết)
-        char json[size];
-        newData.toCharArray(json, size); //Ép kiểu từ String sang Array
-        DynamicJsonDocument jsonBuffer(size);
-        DeserializationError error = deserializeJson(jsonBuffer, json);
-        if (error)
-        {
-            Serial.println("Parse JSON failed!");
-        }
-        // Keo's process
-        int keoSteps = atoi(jsonBuffer["keoSet"]);
-        if (strcmp(jsonBuffer["keo"], "on") == 0) // strcmp - string compare - so sánh 2 chuỗi, nếu bằng nhau thì trả về 0
-        {
-            digitalWrite(relay, HIGH);
-            delay(100);
-            keoStepper.step(keoSteps);
-            digitalWrite(relay, LOW);
-        }
-        else
-        {
-            digitalWrite(relay, HIGH);
-            delay(100);
-            keoStepper.step(0 - keoSteps);
-            digitalWrite(relay, LOW);
-        }
+        Serial.println("Parse JSON failed!");
+    }
+    // Keo's process
+    int keoSteps = atoi(jsonBuffer["keoSet"]);
+    if (strcmp(jsonBuffer["keo"], "on") == 0) // strcmp - string compare - so sánh 2 chuỗi, nếu bằng nhau thì trả về 0
+    {
+        digitalWrite(relay, HIGH);
+        delay(100);
+        keoStepper.step(keoSteps);
+        digitalWrite(relay, LOW);
+    }
+    else
+    {
+        digitalWrite(relay, HIGH);
+        delay(100);
+        keoStepper.step(0 - keoSteps);
+        digitalWrite(relay, LOW);
     }
 }

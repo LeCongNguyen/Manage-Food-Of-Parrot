@@ -26,6 +26,16 @@
         $newJsonString = json_encode($data);
         file_put_contents("./feeder-status.json", $newJsonString);
     }
+    if (isset($_GET["done"])) {
+        $data["done"] = $_GET["done"];
+        $newJsonString = json_encode($data);
+        file_put_contents("./feeder-status.json", $newJsonString);
+    }
+    if (isset($_GET["key"])) {
+        $data["done"] = $_GET["done"];
+        $newJsonString = json_encode($data);
+        file_put_contents("./feeder-status.json", $newJsonString);
+    }
     ?>
 </head>
 
@@ -65,11 +75,13 @@
                         <form action='index.php' method='get'>
                             <?php
                             if ($data['keo'] == 'on') {
+                                echo "<input type='text' name='done' value='0'></input>";
                                 echo "<input type='text' name='keo' value='off'></input>";
                                 echo "<input type='text' name='dua' value=" . $data['dua'] . "></input>";
                                 echo "<button id='keo-btn' class='btn on-btn' type='submit'>ON</button>";
                             }
                             if ($data['keo'] == 'off') {
+                                echo "<input type='text' name='done' value='0'></input>";
                                 echo "<input type='text' name='keo' value='on'></input>";
                                 echo "<input type='text' name='dua' value=" . $data['dua'] . "></input>";
                                 echo "<button id='keo-btn' class='btn off-btn' type='submit'>OFF</button>";

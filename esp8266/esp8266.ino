@@ -15,135 +15,179 @@ const char *password = "07070707";
 //  const char *ssid = "";
 //  const char *password = "duoc6789";
 
-// Host
-String host = "managefoodofparrot.000webhostapp.com";
+// Domain và path file cần get
+String host = "managefoodofparrot.infinityfreeapp.com";
 String path = "/feeder-status.json";
+// status - nội dung file feeder-status.json
 String status;
-String jsonData = "";
-int testBtn = 0; // button on Esp
-int relay = 12;  // relay cấp nguồn cho stepper
+// timeAct - thời gian đọc file
+String timeAct;
+// relay - rơ le cấp nguồn cho động cơ bước và mạch điều khiển
+int relay = 12;
+// i - biến đếm dùng cho các vòng lặp
 int i;
-int initial = 0;
+// led - led trên mạch ESP8266 (pin 2)
+int led = 2;
 
 // Keo's motor
-Stepper_28BYJ_48 keoStepper(5, 4, 2, 14); // tương ứng với D1, D2, D4, D5 của ESP8266
+// 5, 4, 13, 14 tương ứng với D1, D2, D7, D5 của ESP8266
+Stepper_28BYJ_48 keoStepper(5, 4, 13, 14);
 
 void setup()
 {
     Serial.begin(115200);
-    pinMode(testBtn, INPUT_PULLUP);
     pinMode(relay, OUTPUT);
     digitalWrite(relay, LOW);
-    // Connect to Wifi
-    WiFi.begin(ssid, password);
-    Serial.print("Connecting...");
-    delay(1000);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        Serial.print(".");
-        delay(250);
-    }
-    Serial.println("");
-    Serial.print("Connected to WiFi network with IP Address: ");
-    Serial.println(WiFi.localIP());
+    pinMode(led, OUTPUT);
+    connectToWifi();
 }
 
 void loop()
 {
-// ESP sent request to Host to take json file
-retest:
     if (WiFi.status() == WL_CONNECTED)
     {
-        // Connect to host through port 80
         WiFiClient client;
         if (!client.connect(host, 80))
         {
             Serial.println("Connect to server fail!");
             return;
         }
-        // Sent GET request to host
+        // ESP sent GET request to host
         client.print(String("GET ") + path + " HTTP/1.1\r\n" +
                      "Host: " + host + "\r\n" +
+                     // Trường hợp này cần thêm cookie để hiển thị nội dung feeder-status.json (tìm hiểu thêm)
+                     "Cookie: _test=1a274e73b2f6d4bad76fdece11d742c8\r\n" +
                      "Connection: keep-alive\r\n\r\n");
-        // Read data that host respond and show in serial monitor
         while (client.available() == 0)
         {
         }
         while (client.available())
         {
+            //Đọc response được gửi tới ESP từ host
             status = client.readString();
-            int from1 = status.indexOf("Date");
-            int to1 = from1 + 35;
-            String result1 = status.substring(from1, to1);
-            int from2 = status.indexOf("{");
-            String result2 = status.substring(from2);
-            Serial.println(result1);
-            Serial.println(result2);
+            // Tách là thời gian
+            timeAct = status.substring(status.indexOf("Date"), status.indexOf("GMT"));
+            // Tách ra nội dung file feeder-status.json
+            status = status.substring(status.indexOf("{"));
             Serial.println();
+            Serial.print(timeAct);
+            Serial.println("GMT");
+            Serial.println(status);
             client.stop();
-            if (result2 != jsonData)
-            {
-                jsonData = result2;
-                if (initial == 1)
-                {
-                    controlSteppers(result2);
-                }
-                else
-                {
-                    initial = 1;
-                }
-            }
+            controlSteppers(status);
         }
     }
     else
     {
-        Serial.println("WiFi Disconnected");
-        Serial.print(".");
-        delay(250);
+        Serial.println("WiFi Disconnected!");
+        digitalWrite(led, LOW);
+        delay(1000);
+        digitalWrite(led, HIGH);
+        delay(1000);
+        return;
     }
-    // Tạo delay kết hợp kiểm tra nút nhấn
-    i = 60000;
-    while (i >= 0)
-    {
-        if (digitalRead(testBtn) == LOW)
-        {
-            Serial.println("Retest...");
-            goto retest;
-        }
-        else
-        {
-            i--;
-            delay(1);
-        }
-    }
+    ESP.deepSleep(300000000);
 }
 
-void controlSteppers(String newData)
+// Kết nối Wifi
+void connectToWifi()
+{
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting...");
+    delay(1000);
+    i = 0;
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.print(".");
+        // led nháy khi đang trong quá trình kết nối
+        digitalWrite(led, LOW);
+        delay(250);
+        digitalWrite(led, HIGH);
+        delay(250);
+        // nếu sau 100 dấu chấm mà chưa kết nối được thì chờ 30s sau thử kết nối lại
+        i++;
+        if (i == 100)
+        {
+            // 30000000us = 30s
+            ESP.deepSleep(30000000);
+        }
+    }
+    // led sáng liên tục khi đã kết nối thành công
+    digitalWrite(led, LOW);
+    Serial.println("");
+    Serial.print("Connected to WiFi network with IP Address: ");
+    Serial.println(WiFi.localIP());
+}
+
+void controlSteppers(String newStatus)
 {
     // Parse JSON
-    int size = 1024; // Bắt đầu từ ArduinoJson 6.7.0 DynamicJsonDocument có dung lượng cố định (tìm DynamicJsonDocument để xem thêm chi tiết)
+    // Bắt đầu từ ArduinoJson 6.7.0 DynamicJsonDocument có dung lượng cố định (tìm DynamicJsonDocument để xem thêm chi tiết)
+    int size = 1024;
     char json[size];
-    newData.toCharArray(json, size); //Ép kiểu từ String sang Array
+    // Ép kiểu từ String sang Array
+    newStatus.toCharArray(json, size);
     DynamicJsonDocument jsonBuffer(size);
     DeserializationError error = deserializeJson(jsonBuffer, json);
     if (error)
     {
         Serial.println("Parse JSON failed!");
     }
-    // Keo's process
-    int keoSteps = atoi(jsonBuffer["keoSet"]);
-    if (strcmp(jsonBuffer["keo"], "on") == 0) // strcmp - string compare - so sánh 2 chuỗi, nếu bằng nhau thì trả về 0
+    if (jsonBuffer["done"] == "0")
     {
-        digitalWrite(relay, HIGH);
-        delay(100);
-        keoStepper.step(keoSteps);
-        digitalWrite(relay, LOW);
-    }
-    else
-    {
-        digitalWrite(relay, HIGH);
-        delay(100);
-        keoStepper.step(0 - keoSteps);
-        digitalWrite(relay, LOW);
+        // Điều khiển động cơ của Kẹo
+        // atoi - hàm chuyển một chuỗi số sang kiểu int
+        int keoSteps = atoi(jsonBuffer["keoSet"]);
+        // strcmp - string compare - so sánh 2 chuỗi, nếu bằng nhau thì trả về 0
+        if (strcmp(jsonBuffer["keo"], "on") == 0)
+        {
+            Serial.println("on!!!");
+            digitalWrite(relay, HIGH);
+            delay(100);
+            keoStepper.step(keoSteps);
+            digitalWrite(relay, LOW);
+        }
+        else
+        {
+            Serial.println("off!!!");
+            digitalWrite(relay, HIGH);
+            delay(100);
+            keoStepper.step(0 - keoSteps);
+            digitalWrite(relay, LOW);
+        }
+        // Thông báo lên server đã thực hiệnWiFiClient client;
+        while (1)
+        {
+        start:
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                WiFiClient client;
+                if (!client.connect(host, 80))
+                {
+                    Serial.println("Connect to server fail to update \"done\"!");
+                    goto start;
+                }
+                // ESP sent GET request to host
+                client.print(String("GET ") + "/index.php?done=1" + " HTTP/1.1\r\n" +
+                             "Host: " + host + "\r\n" +
+                             // Cần có Cookie
+                             "Cookie: _test=1a274e73b2f6d4bad76fdece11d742c8\r\n" +
+                             "Content-Type: application/x-www-form-urlencoded\r\n" +
+                             "Connection: close\r\n\r\n");
+                client.stop();
+                Serial.println("Update \"done\" is OK!");
+                break;
+            }
+            else
+            {
+                Serial.println("WiFi Disconnected!");
+                Serial.println("Can not update \"done\"!");
+                digitalWrite(led, LOW);
+                delay(2000);
+                digitalWrite(led, HIGH);
+                delay(2000);
+                goto start;
+            }
+        }
     }
 }

@@ -22,10 +22,12 @@ String path = "/feeder-status.json";
 String status;
 // timeAct - thời gian đọc file
 String timeAct;
-// relay - rơ le cấp nguồn cho động cơ bước và mạch điều khiển
+// relay - rơ le cấp nguồn cho động cơ bước và mạch điều khiển (pin 12)
 int relay = 12;
 // i - biến đếm dùng cho các vòng lặp
 int i;
+// iWifiDis - biến đếm số lần wifi disconnect
+int iWifiDis;
 // led - led trên mạch ESP8266 (pin 2)
 int led = 2;
 
@@ -40,6 +42,7 @@ void setup()
     digitalWrite(relay, LOW);
     pinMode(led, OUTPUT);
     connectToWifi();
+    iWifiDis = 0;
 }
 
 void loop()
@@ -84,9 +87,16 @@ void loop()
         delay(1000);
         digitalWrite(led, HIGH);
         delay(1000);
+        iWifiDis++;
+        if (iWifiDis == 100)
+        {
+            // Ngủ 60s
+            ESP.deepSleep(60000000);
+        }
         return;
     }
-    ESP.deepSleep(300000000);
+    // Ngủ 15 phút
+    ESP.deepSleep(60000000);
 }
 
 // Kết nối Wifi
@@ -94,7 +104,7 @@ void connectToWifi()
 {
     WiFi.begin(ssid, password);
     Serial.print("Connecting...");
-    delay(1000);
+    delay(250);
     i = 0;
     while (WiFi.status() != WL_CONNECTED)
     {
@@ -104,12 +114,12 @@ void connectToWifi()
         delay(250);
         digitalWrite(led, HIGH);
         delay(250);
-        // nếu sau 100 dấu chấm mà chưa kết nối được thì chờ 30s sau thử kết nối lại
+        // nếu sau 100 dấu chấm mà chưa kết nối được thì chờ 60s sau thử kết nối lại
         i++;
         if (i == 100)
         {
-            // 30000000us = 30s
-            ESP.deepSleep(30000000);
+            // Ngủ 60s
+            ESP.deepSleep(60000000);
         }
     }
     // led sáng liên tục khi đã kết nối thành công
@@ -156,6 +166,7 @@ void controlSteppers(String newStatus)
             digitalWrite(relay, LOW);
         }
         // Thông báo lên server đã thực hiệnWiFiClient client;
+        int iNotDone = 0;
         while (1)
         {
         start:
@@ -186,6 +197,14 @@ void controlSteppers(String newStatus)
                 delay(2000);
                 digitalWrite(led, HIGH);
                 delay(2000);
+                iNotDone++;
+                if (iNotDone == 100)
+                {
+                    delay(60000);
+                    iNotDone = 0;
+                    connectToWifi();
+                    
+                }
                 goto start;
             }
         }
